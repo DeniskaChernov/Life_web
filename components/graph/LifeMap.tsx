@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -16,19 +16,26 @@ import "@xyflow/react/dist/style.css";
 import { BaseNode } from "@/components/graph/nodes/BaseNode";
 import { useGraphStore } from "@/store/graph.store";
 import { toFlowEdge, toFlowNode } from "@/types/graph";
-import type { Edge as DbEdge, Graph, Node as DbNode } from "@prisma/client";
 import { NODE_CATEGORY_VALUES, type NodeCategory } from "@/constants/node-categories";
+import { createEdge, createNode, fetchGraph, patchNode } from "@/services/graph.service";
 
 const nodeTypes = { life: BaseNode } as NodeTypes;
 
 function LifeMapInner({ graphId }: { graphId: string }) {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
+  const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId);
   const onNodesChange = useGraphStore((s) => s.onNodesChange);
   const onEdgesChange = useGraphStore((s) => s.onEdgesChange);
   const reset = useGraphStore((s) => s.reset);
   const setSelected = useGraphStore((s) => s.setSelectedNodeId);
+  const setSelectedEdge = useGraphStore((s) => s.setSelectedEdgeId);
   const addEdgeLocal = useGraphStore((s) => s.addEdgeLocal);
+
+  const edgesForFlow = useMemo(
+    () => edges.map((e) => ({ ...e, selected: e.id === selectedEdgeId })),
+    [edges, selectedEdgeId],
+  );
 
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -38,16 +45,18 @@ function LifeMapInner({ graphId }: { graphId: string }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const r = await fetch(`/api/v1/graphs/${graphId}`);
-      if (!r.ok || cancelled) return;
-      const data = (await r.json()) as { graph: Graph & { nodes: DbNode[]; edges: DbEdge[] } };
-      const { graph } = data;
-      reset(
-        graph.id,
-        graph.name,
-        graph.nodes.map((n) => toFlowNode(n)),
-        graph.edges.map((e) => toFlowEdge(e)),
-      );
+      try {
+        const graph = await fetchGraph(graphId);
+        if (cancelled) return;
+        reset(
+          graph.id,
+          graph.name,
+          graph.nodes.map((n) => toFlowNode(n)),
+          graph.edges.map((e) => toFlowEdge(e)),
+        );
+      } catch {
+        /* ignore */
+      }
     })();
     return () => {
       cancelled = true;
@@ -55,11 +64,11 @@ function LifeMapInner({ graphId }: { graphId: string }) {
   }, [graphId, reset]);
 
   const flushPosition = useCallback(async (nodeId: string, x: number, y: number) => {
-    await fetch(`/api/v1/nodes/${nodeId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ positionX: x, positionY: y }),
-    });
+    try {
+      await patchNode(nodeId, { positionX: x, positionY: y });
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const onNodeDragStop = useCallback(
@@ -77,18 +86,16 @@ function LifeMapInner({ graphId }: { graphId: string }) {
       if (!c.source || !c.target) return;
       const gid = useGraphStore.getState().graphId;
       if (!gid) return;
-      const res = await fetch("/api/v1/edges", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        const { edge } = await createEdge({
           graphId: gid,
           sourceId: c.source,
           targetId: c.target,
-        }),
-      });
-      if (!res.ok) return;
-      const body = (await res.json()) as { edge: DbEdge };
-      addEdgeLocal(toFlowEdge(body.edge));
+        });
+        addEdgeLocal(toFlowEdge(edge));
+      } catch {
+        /* ignore */
+      }
     },
     [addEdgeLocal],
   );
@@ -100,32 +107,37 @@ function LifeMapInner({ graphId }: { graphId: string }) {
     [setSelected],
   );
 
+  const onEdgeClick = useCallback(
+    (_: unknown, edge: { id: string }) => {
+      setSelectedEdge(edge.id);
+    },
+    [setSelectedEdge],
+  );
+
   const onPaneClick = useCallback(() => {
     setSelected(null);
   }, [setSelected]);
 
-  const createNode = useCallback(async () => {
+  const createNodeAction = useCallback(async () => {
     const gid = useGraphStore.getState().graphId;
     if (!gid || !newTitle.trim()) return;
     const cx = 200 + Math.random() * 120;
     const cy = 120 + Math.random() * 120;
-    const res = await fetch("/api/v1/nodes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      const { node } = await createNode({
         graphId: gid,
         title: newTitle.trim(),
         category: newCategory,
         positionX: cx,
         positionY: cy,
-      }),
-    });
-    if (!res.ok) return;
-    const { node } = (await res.json()) as { node: DbNode };
-    const flow = toFlowNode(node);
-    useGraphStore.setState((s) => ({ nodes: [...s.nodes, flow] }));
-    setNewTitle("");
-    setCreating(false);
+      });
+      const flow = toFlowNode(node);
+      useGraphStore.setState((s) => ({ nodes: [...s.nodes, flow] }));
+      setNewTitle("");
+      setCreating(false);
+    } catch {
+      /* ignore */
+    }
   }, [newTitle, newCategory]);
 
   return (
@@ -159,7 +171,7 @@ function LifeMapInner({ graphId }: { graphId: string }) {
             </select>
             <button
               type="button"
-              onClick={() => void createNode()}
+              onClick={() => void createNodeAction()}
               className="rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-500"
             >
               Создать
@@ -170,12 +182,13 @@ function LifeMapInner({ graphId }: { graphId: string }) {
 
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={edgesForFlow}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={(c) => void onConnect(c)}
         onNodeDragStop={onNodeDragStop}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
@@ -184,7 +197,12 @@ function LifeMapInner({ graphId }: { graphId: string }) {
         proOptions={{ hideAttribution: true }}
         className="!bg-transparent"
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgba(148,163,184,0.15)" />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1}
+          color="rgba(148,163,184,0.15)"
+        />
         <Controls className="!bg-[#111827]/90 !border-white/10 !shadow-xl [&_button]:!text-slate-200" />
         <MiniMap
           className="!bg-[#0D1220]/90 !border !border-white/10 rounded-lg overflow-hidden"

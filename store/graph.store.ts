@@ -1,4 +1,9 @@
-import { applyEdgeChanges, applyNodeChanges, type EdgeChange, type NodeChange } from "@xyflow/react";
+import {
+  applyEdgeChanges,
+  applyNodeChanges,
+  type EdgeChange,
+  type NodeChange,
+} from "@xyflow/react";
 import { create } from "zustand";
 import type { LifeFlowEdge, LifeFlowNode } from "@/types/graph";
 
@@ -8,8 +13,10 @@ type GraphState = {
   nodes: LifeFlowNode[];
   edges: LifeFlowEdge[];
   selectedNodeId: string | null;
+  selectedEdgeId: string | null;
   reset: (graphId: string, graphName: string, nodes: LifeFlowNode[], edges: LifeFlowEdge[]) => void;
   setSelectedNodeId: (id: string | null) => void;
+  setSelectedEdgeId: (id: string | null) => void;
   onNodesChange: (changes: NodeChange<LifeFlowNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<LifeFlowEdge>[]) => void;
   addEdgeLocal: (edge: LifeFlowEdge) => void;
@@ -23,11 +30,14 @@ export const useGraphStore = create<GraphState>((set) => ({
   nodes: [],
   edges: [],
   selectedNodeId: null,
+  selectedEdgeId: null,
 
   reset: (graphId, graphName, nodes, edges) =>
-    set({ graphId, graphName, nodes, edges, selectedNodeId: null }),
+    set({ graphId, graphName, nodes, edges, selectedNodeId: null, selectedEdgeId: null }),
 
-  setSelectedNodeId: (id) => set({ selectedNodeId: id }),
+  setSelectedNodeId: (id) => set({ selectedNodeId: id, selectedEdgeId: null }),
+
+  setSelectedEdgeId: (id) => set({ selectedEdgeId: id, selectedNodeId: null }),
 
   onNodesChange: (changes) => {
     set((s) => ({ nodes: applyNodeChanges(changes, s.nodes) as LifeFlowNode[] }));
@@ -45,6 +55,7 @@ export const useGraphStore = create<GraphState>((set) => ({
   removeEdge: (edgeId) =>
     set((s) => ({
       edges: s.edges.filter((e) => e.id !== edgeId),
+      selectedEdgeId: s.selectedEdgeId === edgeId ? null : s.selectedEdgeId,
     })),
 
   updateNodeDb: (nodeId, patch) =>
