@@ -1,0 +1,6 @@
+# Railway: https://docs.railway.com/reference/config-as-code
+# Переменные DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL задаются в UI сервиса Web.
+# Старт: `npm run start` (в package.json уже есть `prisma migrate deploy && next start`).
+
+[build]
+builder = "nixpacks"

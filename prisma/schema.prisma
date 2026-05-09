@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -27,7 +27,7 @@ model Graph {
   name        String
   description String?
   isRoot      Boolean  @default(true)
-  settings    String   @default("{}")
+  settings    Json     @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -47,14 +47,14 @@ model Node {
   title         String
   description   String?
   category      String
-  tags          String    @default("[]")
+  tags          String[]  @default([])
   targetDate    DateTime?
   status        String    @default("FUTURE")
   priority      String    @default("MEDIUM")
   positionX     Float     @default(0)
   positionY     Float     @default(0)
   color         String?
-  financialData String?
+  financialData Json?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
