@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  graphs Graph[]
+  nodes  Node[]
+  edges  Edge[]
+}
+
+model Graph {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  isRoot      Boolean  @default(true)
+  settings    String   @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  nodes Node[]
+  edges Edge[]
+
+  @@index([userId])
+}
+
+model Node {
+  id            String    @id @default(uuid())
+  graphId       String
+  graph         Graph     @relation(fields: [graphId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  path          String
+  title         String
+  description   String?
+  category      String
+  tags          String    @default("[]")
+  targetDate    DateTime?
+  status        String    @default("FUTURE")
+  priority      String    @default("MEDIUM")
+  positionX     Float     @default(0)
+  positionY     Float     @default(0)
+  color         String?
+  financialData String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  outgoingEdges Edge[] @relation("EdgeSource")
+  incomingEdges Edge[] @relation("EdgeTarget")
+
+  @@index([graphId])
+  @@index([userId])
+}
+
+model Edge {
+  id        String   @id @default(uuid())
+  graphId   String
+  graph     Graph    @relation(fields: [graphId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceId  String
+  targetId  String
+  source    Node     @relation("EdgeSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target    Node     @relation("EdgeTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  type      String   @default("RELATED")
+  label     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceId, targetId, type])
+  @@index([graphId])
+}
