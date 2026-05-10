@@ -25,36 +25,68 @@ import { EDGE_CULLING_PRIORITY_TYPES, type EdgeType } from "@/constants/edge-typ
 import { EDGE_CULLING_ZOOM_THRESHOLD, isCategoryVisibleAtPreset } from "@/constants/zoom-levels";
 import { useZoomPreset } from "@/hooks/useViewport";
 import { createEdge, createNode, fetchGraph, patchNode } from "@/services/graph.service";
+import { nodesWithinHops } from "@/lib/graph-helpers";
+import { CommandPalette } from "@/components/overlays/CommandPalette";
+import { NodeContextMenu } from "@/components/overlays/NodeContextMenu";
+import { FloatingToolbar } from "@/components/overlays/FloatingToolbar";
+import { TimeHorizonBar } from "@/components/overlays/TimeHorizonBar";
+import { BottomInfoBar } from "@/components/overlays/BottomInfoBar";
+
+const FOCUS_HOPS = 2;
+const DIM_OPACITY = 0.28;
 
 function LifeMapInner({ graphId }: { graphId: string }) {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId);
+  const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
+  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const hoveredNodeId = useGraphStore((s) => s.hoveredNodeId);
   const timeHorizonFilter = useGraphStore((s) => s.timeHorizonFilter);
   const onNodesChange = useGraphStore((s) => s.onNodesChange);
   const onEdgesChange = useGraphStore((s) => s.onEdgesChange);
   const reset = useGraphStore((s) => s.reset);
   const setSelected = useGraphStore((s) => s.setSelectedNodeId);
   const setSelectedEdge = useGraphStore((s) => s.setSelectedEdgeId);
+  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
+  const setHovered = useGraphStore((s) => s.setHoveredNodeId);
+  const openContextMenu = useGraphStore((s) => s.openContextMenu);
+  const closeContextMenu = useGraphStore((s) => s.closeContextMenu);
   const addEdgeLocal = useGraphStore((s) => s.addEdgeLocal);
 
   const { zoom, preset } = useZoomPreset();
 
-  const filteredNodes = useMemo<LifeFlowNode[]>(() => {
-    return nodes.filter((n) => {
-      const cat = n.data.db.category as NodeCategory;
-      if (!isCategoryVisibleAtPreset(cat, preset)) return false;
-      if (timeHorizonFilter !== "ALL") {
-        const h = (n.data.db.timeHorizon || "MONTH") as TimeHorizon;
-        if (h !== timeHorizonFilter) return false;
-      }
-      return true;
-    });
-  }, [nodes, preset, timeHorizonFilter]);
+  // Focus ray: 2-hop neighbours of focused (selected or hovered) node.
+  const focusedId = selectedNodeId ?? hoveredNodeId;
+  const focusSet = useMemo<Set<string> | null>(() => {
+    if (!focusedId) return null;
+    return nodesWithinHops(nodes, edges, focusedId, FOCUS_HOPS);
+  }, [focusedId, nodes, edges]);
 
-  const visibleNodeIds = useMemo(() => new Set(filteredNodes.map((n) => n.id)), [filteredNodes]);
+  const visibleNodes = useMemo<LifeFlowNode[]>(() => {
+    return nodes
+      .filter((n) => {
+        const cat = n.data.db.category as NodeCategory;
+        if (!isCategoryVisibleAtPreset(cat, preset)) return false;
+        if (timeHorizonFilter !== "ALL") {
+          const h = (n.data.db.timeHorizon || "MONTH") as TimeHorizon;
+          if (h !== timeHorizonFilter) return false;
+        }
+        return true;
+      })
+      .map((n) => {
+        const dim = focusSet ? !focusSet.has(n.id) : false;
+        return {
+          ...n,
+          style: dim ? { ...(n.style ?? {}), opacity: DIM_OPACITY } : { ...(n.style ?? {}) },
+          selected: selectedNodeIds.includes(n.id) || n.id === selectedNodeId,
+        };
+      });
+  }, [nodes, preset, timeHorizonFilter, focusSet, selectedNodeIds, selectedNodeId]);
 
-  const filteredEdges = useMemo<LifeFlowEdge[]>(() => {
+  const visibleNodeIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
+
+  const visibleEdges = useMemo<LifeFlowEdge[]>(() => {
     return edges
       .filter((e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target))
       .filter((e) => {
@@ -62,8 +94,15 @@ function LifeMapInner({ graphId }: { graphId: string }) {
         const t = (e.data?.db.type as EdgeType | undefined) ?? "RELATED";
         return EDGE_CULLING_PRIORITY_TYPES.has(t);
       })
-      .map((e) => ({ ...e, selected: e.id === selectedEdgeId }));
-  }, [edges, visibleNodeIds, zoom, selectedEdgeId]);
+      .map((e) => {
+        const dim = focusSet ? !(focusSet.has(e.source) && focusSet.has(e.target)) : false;
+        return {
+          ...e,
+          selected: e.id === selectedEdgeId,
+          style: dim ? { ...(e.style ?? {}), opacity: DIM_OPACITY } : { ...(e.style ?? {}) },
+        };
+      });
+  }, [edges, visibleNodeIds, zoom, focusSet, selectedEdgeId]);
 
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -128,11 +167,25 @@ function LifeMapInner({ graphId }: { graphId: string }) {
     [addEdgeLocal],
   );
 
-  const onNodeClick = useCallback(
-    (_: unknown, node: { id: string }) => {
-      setSelected(node.id);
+  const onSelectionChange = useCallback(
+    ({ nodes: selNodes }: { nodes: { id: string }[] }) => {
+      const ids = selNodes.map((n) => n.id);
+      if (ids.length > 1) setSelectedNodeIds(ids);
     },
-    [setSelected],
+    [setSelectedNodeIds],
+  );
+
+  const onNodeClick = useCallback(
+    (e: { shiftKey?: boolean }, node: { id: string }) => {
+      if (e.shiftKey) {
+        const cur = useGraphStore.getState().selectedNodeIds;
+        const next = cur.includes(node.id) ? cur.filter((id) => id !== node.id) : [...cur, node.id];
+        setSelectedNodeIds(next);
+      } else {
+        setSelected(node.id);
+      }
+    },
+    [setSelected, setSelectedNodeIds],
   );
 
   const onEdgeClick = useCallback(
@@ -144,7 +197,30 @@ function LifeMapInner({ graphId }: { graphId: string }) {
 
   const onPaneClick = useCallback(() => {
     setSelected(null);
-  }, [setSelected]);
+    closeContextMenu();
+  }, [setSelected, closeContextMenu]);
+
+  const onNodeMouseEnter = useCallback(
+    (_: unknown, node: { id: string }) => setHovered(node.id),
+    [setHovered],
+  );
+  const onNodeMouseLeave = useCallback(() => setHovered(null), [setHovered]);
+
+  const onNodeContextMenu = useCallback(
+    (e: React.MouseEvent, node: { id: string }) => {
+      e.preventDefault();
+      openContextMenu({ x: e.clientX, y: e.clientY, kind: "node", targetId: node.id });
+    },
+    [openContextMenu],
+  );
+
+  const onEdgeContextMenu = useCallback(
+    (e: React.MouseEvent, edge: { id: string }) => {
+      e.preventDefault();
+      openContextMenu({ x: e.clientX, y: e.clientY, kind: "edge", targetId: edge.id });
+    },
+    [openContextMenu],
+  );
 
   const createNodeAction = useCallback(async () => {
     const gid = useGraphStore.getState().graphId;
@@ -208,9 +284,11 @@ function LifeMapInner({ graphId }: { graphId: string }) {
         ) : null}
       </div>
 
+      <TimeHorizonBar />
+
       <ReactFlow
-        nodes={filteredNodes}
-        edges={filteredEdges}
+        nodes={visibleNodes}
+        edges={visibleEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={(c) => void onConnect(c)}
@@ -218,12 +296,21 @@ function LifeMapInner({ graphId }: { graphId: string }) {
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
+        onNodeMouseEnter={onNodeMouseEnter}
+        onNodeMouseLeave={onNodeMouseLeave}
+        onNodeContextMenu={onNodeContextMenu}
+        onEdgeContextMenu={onEdgeContextMenu}
+        onSelectionChange={onSelectionChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
         minZoom={0.2}
         maxZoom={2.4}
         proOptions={{ hideAttribution: true }}
+        selectionOnDrag
+        panOnDrag={[1, 2]}
+        multiSelectionKeyCode={["Shift"]}
+        selectionKeyCode={null}
         className="!bg-transparent"
       >
         <Background
@@ -242,6 +329,11 @@ function LifeMapInner({ graphId }: { graphId: string }) {
           }}
         />
       </ReactFlow>
+
+      <BottomInfoBar />
+      <FloatingToolbar />
+      <CommandPalette />
+      <NodeContextMenu />
     </div>
   );
 }
