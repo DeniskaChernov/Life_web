@@ -24,11 +24,28 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  graphs         Graph[]
-  nodes          Node[]
-  edges          Edge[]
-  nodeSnapshots  NodeSnapshot[]
-  aiInteractions AiInteraction[]
+  graphs              Graph[]
+  nodes               Node[]
+  edges               Edge[]
+  nodeSnapshots       NodeSnapshot[]
+  aiInteractions      AiInteraction[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Password reset
+// ────────────────────────────────────────────────────────────────────────────────
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
