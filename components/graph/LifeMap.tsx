@@ -21,12 +21,8 @@ import {
   type NodeCategory,
   type TimeHorizon,
 } from "@/constants/node-categories";
-import {
-  EDGE_CULLING_PRIORITY_TYPES,
-  EDGE_CULLING_ZOOM_THRESHOLD,
-  type EdgeType,
-} from "@/constants/edge-types";
-import { isCategoryVisibleAtPreset } from "@/constants/zoom-levels";
+import { EDGE_CULLING_PRIORITY_TYPES, type EdgeType } from "@/constants/edge-types";
+import { EDGE_CULLING_ZOOM_THRESHOLD, isCategoryVisibleAtPreset } from "@/constants/zoom-levels";
 import { useZoomPreset } from "@/hooks/useViewport";
 import { createEdge, createNode, fetchGraph, patchNode } from "@/services/graph.service";
 
