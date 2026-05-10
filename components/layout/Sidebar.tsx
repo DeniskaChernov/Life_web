@@ -26,7 +26,9 @@ export function Sidebar() {
               key={l.href}
               href={l.href}
               className={`block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                active ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                active
+                  ? "bg-white/10 text-white"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
               }`}
             >
               {l.label}

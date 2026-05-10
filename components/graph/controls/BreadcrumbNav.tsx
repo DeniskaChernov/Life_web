@@ -13,7 +13,9 @@ export function BreadcrumbNav({ graphId }: { graphId: string }) {
       </Link>
       <span className="opacity-40">/</span>
       <span className="text-slate-200 font-medium truncate max-w-[200px]">{graphName || "…"}</span>
-      <span className="opacity-30 font-mono text-[10px] truncate max-w-[120px]">{graphId.slice(0, 8)}…</span>
+      <span className="opacity-30 font-mono text-[10px] truncate max-w-[120px]">
+        {graphId.slice(0, 8)}…
+      </span>
     </nav>
   );
 }

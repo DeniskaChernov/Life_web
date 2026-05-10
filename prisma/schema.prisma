@@ -7,18 +7,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Users
+// ────────────────────────────────────────────────────────────────────────────────
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String?
   name         String?
+  avatarUrl    String?
+  timezone     String   @default("UTC")
+  currency     String   @default("RUB")
+  onboardingCompleted Boolean @default(false)
+  settings     Json     @default("{}")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  graphs Graph[]
-  nodes  Node[]
-  edges  Edge[]
+  graphs         Graph[]
+  nodes          Node[]
+  edges          Edge[]
+  nodeSnapshots  NodeSnapshot[]
+  aiInteractions AiInteraction[]
 }
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Graphs (root + sub-graphs that hang off a node, for "drill-in" navigation)
+// ────────────────────────────────────────────────────────────────────────────────
 
 model Graph {
   id          String   @id @default(uuid())
@@ -27,6 +42,7 @@ model Graph {
   name        String
   description String?
   isRoot      Boolean  @default(true)
+  parentNodeId String?
   settings    Json     @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -35,7 +51,12 @@ model Graph {
   edges Edge[]
 
   @@index([userId])
+  @@index([parentNodeId])
 }
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Nodes (LIFE_MASTER_BLUEPRINT.md, section 11 — extended)
+// ────────────────────────────────────────────────────────────────────────────────
 
 model Node {
   id            String    @id @default(uuid())
@@ -43,43 +64,122 @@ model Node {
   graph         Graph     @relation(fields: [graphId], references: [id], onDelete: Cascade)
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   path          String
+  parentId      String?
+  parent        Node?     @relation("NodeChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children      Node[]    @relation("NodeChildren")
+  subgraphId    String?
+  depth         Int       @default(0)
+
   title         String
   description   String?
   category      String
+  subCategory   String?
   tags          String[]  @default([])
-  targetDate    DateTime?
+
   status        String    @default("FUTURE")
   priority      String    @default("MEDIUM")
+  progress      Int       @default(0)
+  timeHorizon   String    @default("MONTH")
+  energy        String    @default("STEADY")
+
+  startDate     DateTime?
+  targetDate    DateTime?
+  completedAt   DateTime?
+
   positionX     Float     @default(0)
   positionY     Float     @default(0)
   color         String?
+  icon          String?
+  size          String    @default("MD")
+  isPinned      Boolean   @default(false)
+  isCollapsed   Boolean   @default(false)
+
   financialData Json?
+
+  aiScore       Float?
+  aiInsights    Json?
+
+  version       Int       @default(1)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  outgoingEdges Edge[] @relation("EdgeSource")
-  incomingEdges Edge[] @relation("EdgeTarget")
+  outgoingEdges  Edge[]         @relation("EdgeSource")
+  incomingEdges  Edge[]         @relation("EdgeTarget")
+  snapshots      NodeSnapshot[]
 
   @@index([graphId])
   @@index([userId])
+  @@index([parentId])
+  @@index([category])
+  @@index([status])
+  @@index([timeHorizon])
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Edges (LIFE_MASTER_BLUEPRINT.md, section 4.2)
+// ────────────────────────────────────────────────────────────────────────────────
+
 model Edge {
-  id        String   @id @default(uuid())
-  graphId   String
-  graph     Graph    @relation(fields: [graphId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceId  String
-  targetId  String
-  source    Node     @relation("EdgeSource", fields: [sourceId], references: [id], onDelete: Cascade)
-  target    Node     @relation("EdgeTarget", fields: [targetId], references: [id], onDelete: Cascade)
-  type      String   @default("RELATED")
-  label     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  graphId     String
+  graph       Graph    @relation(fields: [graphId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceId    String
+  targetId    String
+  source      Node     @relation("EdgeSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target      Node     @relation("EdgeTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  type        String   @default("RELATED")
+  label       String?
+  description String?
+  strength    Float    @default(0.5)
+  direction   String   @default("FORWARD")
+  isAnimated  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([sourceId, targetId, type])
   @@index([graphId])
+  @@index([type])
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Node snapshots — versioned history
+// ────────────────────────────────────────────────────────────────────────────────
+
+model NodeSnapshot {
+  id        String   @id @default(uuid())
+  nodeId    String
+  node      Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version   Int
+  snapshot  Json
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([nodeId])
+  @@index([userId])
+  @@unique([nodeId, version])
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// AI interactions log
+// ────────────────────────────────────────────────────────────────────────────────
+
+model AiInteraction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  contextNodeId String?
+  prompt    String?
+  response  Json?
+  accepted  Boolean?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([contextNodeId])
 }

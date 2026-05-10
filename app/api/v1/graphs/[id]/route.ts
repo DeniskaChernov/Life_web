@@ -46,7 +46,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const parsed = patchGraphSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "VALIDATION", details: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: "VALIDATION", details: parsed.error.flatten() },
+      { status: 400 },
+    );
   }
 
   const updated = await prisma.graph.update({
