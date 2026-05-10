@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import {
   NODE_CATEGORY_VALUES,
@@ -105,9 +106,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(completedAt !== undefined && { completedAt }),
       ...(d.positionX !== undefined && { positionX: d.positionX }),
       ...(d.positionY !== undefined && { positionY: d.positionY }),
-      ...(d.parentId !== undefined && { parentId: d.parentId }),
+      ...(d.parentId !== undefined && {
+        parent: d.parentId === null ? { disconnect: true } : { connect: { id: d.parentId } },
+      }),
       ...(d.financialData !== undefined && {
-        financialData: d.financialData as object | null,
+        financialData:
+          d.financialData === null ? Prisma.JsonNull : (d.financialData as Prisma.InputJsonValue),
       }),
       version: { increment: 1 },
     },
