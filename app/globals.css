@@ -5,10 +5,159 @@
 :root {
   --background: #080b14;
   --foreground: #f8fafc;
+
+  --bg-void: #05060b;
+  --bg-base: #080b14;
+  --bg-surface: #0f1424;
+  --bg-elevated: #161b2e;
+
+  --text-hero: #f8fafc;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  --glass-panel: rgba(15, 20, 36, 0.62);
+  --glass-panel-strong: rgba(15, 20, 36, 0.84);
+  --glass-border: rgba(148, 163, 184, 0.18);
 }
 
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body), "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  .glass-panel {
+    background: var(--glass-panel);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      0 18px 60px -16px rgba(0, 0, 0, 0.7),
+      inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+  }
+
+  .glass-panel-strong {
+    background: var(--glass-panel-strong);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      0 24px 80px -20px rgba(0, 0, 0, 0.8),
+      inset 0 0 0 1px rgba(148, 163, 184, 0.22);
+  }
+
+  .node-active {
+    box-shadow: 0 0 28px var(--node-glow, rgba(99, 102, 241, 0.55));
+  }
+
+  .node-selected {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.4),
+      0 0 36px var(--node-glow, rgba(99, 102, 241, 0.7));
+  }
+
+  .node-critical {
+    animation: pulse-glow 2.4s ease-in-out infinite;
+  }
+
+  .edge-animated {
+    stroke-dasharray: 8 4;
+    animation: edge-flow 1.6s linear infinite;
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.7;
+    filter: blur(0px);
+  }
+  50% {
+    opacity: 1;
+    filter: blur(1px);
+  }
+}
+
+@keyframes edge-flow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* React Flow overrides */
+.react-flow {
+  background: var(--bg-base);
+}
+
+.react-flow__background {
+  background-color: var(--bg-base);
+}
+
+.react-flow__edges {
+  z-index: 1;
+}
+
+.react-flow__node {
+  animation: fade-in-up 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    filter 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.react-flow__node:hover {
+  filter: brightness(1.08);
+}
+
+.react-flow__controls {
+  background: var(--glass-panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  box-shadow: 0 18px 60px -16px rgba(0, 0, 0, 0.7);
+}
+
+.react-flow__controls-button {
+  background: transparent;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-secondary);
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.react-flow__minimap {
+  background: var(--glass-panel);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  box-shadow: 0 18px 60px -16px rgba(0, 0, 0, 0.6);
+}
+
+.react-flow__selection {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px dashed rgba(99, 102, 241, 0.55);
 }
