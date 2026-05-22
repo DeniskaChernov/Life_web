@@ -14,7 +14,8 @@ export default auth((req) => {
     pathname.startsWith("/life") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/financial") ||
-    pathname.startsWith("/onboarding")
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/settings")
   ) {
     if (!isAuthed) return NextResponse.redirect(new URL("/login", req.url));
   }
@@ -31,6 +32,8 @@ export const config = {
     "/financial",
     "/financial/:path*",
     "/onboarding",
+    "/settings",
+    "/settings/:path*",
     "/login",
     "/register",
   ],

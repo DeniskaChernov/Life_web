@@ -66,6 +66,8 @@ export function RightPanel() {
   const [energy, setEnergy] = useState<NodeEnergy>("STEADY");
   const [progress, setProgress] = useState(0);
   const [targetDateLocal, setTargetDateLocal] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   // Edge fields
   const [edgeType, setEdgeType] = useState<EdgeType>("RELATED");
@@ -86,6 +88,8 @@ export function RightPanel() {
     setEnergy((db.energy as NodeEnergy) || "STEADY");
     setProgress(db.progress ?? 0);
     setTargetDateLocal(dateToLocalInput(db.targetDate));
+    setTags(db.tags ?? []);
+    setTagInput("");
   }, [node]);
 
   useEffect(() => {
@@ -112,6 +116,7 @@ export function RightPanel() {
         energy,
         progress,
         targetDate,
+        tags,
       });
       updateNodeDb(node.id, updated);
     } catch {
@@ -128,6 +133,7 @@ export function RightPanel() {
     energy,
     progress,
     targetDateLocal,
+    tags,
     updateNodeDb,
   ]);
 
@@ -391,6 +397,41 @@ export function RightPanel() {
           onChange={(e) => setTargetDateLocal(e.target.value)}
           className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100"
         />
+
+        <FieldLabel>Теги</FieldLabel>
+        <div className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 flex flex-wrap gap-1.5 min-h-[38px]">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="flex items-center gap-1 rounded-md bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 text-xs text-indigo-300"
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => setTags((t) => t.filter((x) => x !== tag))}
+                className="text-indigo-400 hover:text-red-300 leading-none"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+                e.preventDefault();
+                const t = tagInput.trim().replace(/,$/, "");
+                if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+                setTagInput("");
+              } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+                setTags((prev) => prev.slice(0, -1));
+              }
+            }}
+            placeholder={tags.length === 0 ? "Добавить тег…" : ""}
+            className="flex-1 min-w-[80px] bg-transparent text-xs text-slate-300 outline-none placeholder:text-slate-600"
+          />
+        </div>
 
         <div className="flex gap-2 mt-2">
           <button

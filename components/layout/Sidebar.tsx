@@ -8,6 +8,7 @@ const links = [
   { href: "/life", label: "Life Map", icon: "◆" },
   { href: "/dashboard", label: "Dashboard", icon: "▣" },
   { href: "/financial", label: "Финансы", icon: "₽" },
+  { href: "/settings", label: "Настройки", icon: "⚙" },
 ];
 
 export function Sidebar() {
