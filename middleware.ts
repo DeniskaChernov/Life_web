@@ -10,7 +10,12 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/life") || pathname.startsWith("/dashboard")) {
+  if (
+    pathname.startsWith("/life") ||
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/financial") ||
+    pathname.startsWith("/onboarding")
+  ) {
     if (!isAuthed) return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -18,5 +23,15 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/life", "/life/:path*", "/dashboard", "/dashboard/:path*", "/login", "/register"],
+  matcher: [
+    "/life",
+    "/life/:path*",
+    "/dashboard",
+    "/dashboard/:path*",
+    "/financial",
+    "/financial/:path*",
+    "/onboarding",
+    "/login",
+    "/register",
+  ],
 };
