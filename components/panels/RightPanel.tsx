@@ -69,6 +69,13 @@ export function RightPanel() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
 
+  // History tab
+  const [tab, setTab] = useState<"edit" | "history">("edit");
+  const [snapshots, setSnapshots] = useState<
+    { id: string; version: number; createdAt: string; snapshot: Record<string, unknown> }[]
+  >([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   // Edge fields
   const [edgeType, setEdgeType] = useState<EdgeType>("RELATED");
   const [edgeLabel, setEdgeLabel] = useState("");
@@ -90,6 +97,8 @@ export function RightPanel() {
     setTargetDateLocal(dateToLocalInput(db.targetDate));
     setTags(db.tags ?? []);
     setTagInput("");
+    setTab("edit");
+    setSnapshots([]);
   }, [node]);
 
   useEffect(() => {
@@ -280,176 +289,249 @@ export function RightPanel() {
     );
   }
 
+  function loadHistory() {
+    if (!node || historyLoading) return;
+    setHistoryLoading(true);
+    fetch(`/api/v1/nodes/${node.id}/snapshots`)
+      .then((r) => r.json() as Promise<{ snapshots?: typeof snapshots }>)
+      .then((d) => {
+        if (d.snapshots) setSnapshots(d.snapshots);
+      })
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false));
+  }
+
   return (
     <aside className="w-[340px] shrink-0 border-l border-white/10 glass-panel-strong flex flex-col">
-      <div className="p-4 border-b border-white/10">
-        <h2 className="text-[10px] uppercase tracking-[0.08em] text-slate-500 font-semibold">
-          Узел
-        </h2>
-        <p className="text-sm font-semibold text-slate-100 mt-1 flex items-center gap-2">
+      <div className="px-4 pt-4 pb-0 border-b border-white/10">
+        <p className="text-sm font-semibold text-slate-100 flex items-center gap-2 mb-3">
           <span>{NODE_ICONS[category]}</span>
-          <span>{NODE_CATEGORY_LABELS[category]}</span>
+          <span className="truncate">{NODE_CATEGORY_LABELS[category]}</span>
         </p>
-      </div>
-      <div className="p-4 flex flex-col gap-3 flex-1 overflow-y-auto">
-        <FieldLabel>Заголовок</FieldLabel>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100"
-        />
-
-        <FieldLabel>Описание</FieldLabel>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100 resize-none"
-        />
-
-        <FieldLabel>Категория</FieldLabel>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value as NodeCategory)}
-          className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100"
-        >
-          {NODE_CATEGORY_VALUES.map((c) => (
-            <option key={c} value={c}>
-              {NODE_CATEGORY_LABELS[c]}
-            </option>
+        <div className="flex gap-1 -mb-px">
+          {(["edit", "history"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => {
+                setTab(t);
+                if (t === "history" && snapshots.length === 0) loadHistory();
+              }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${
+                tab === t
+                  ? "border-indigo-500 text-indigo-300"
+                  : "border-transparent text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              {t === "edit" ? "Редактор" : "История"}
+            </button>
           ))}
-        </select>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <FieldLabel>Статус</FieldLabel>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as NodeStatus)}
-              className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 px-2 py-2 text-xs text-slate-100"
-            >
-              {NODE_STATUS_VALUES.map((s) => (
-                <option key={s} value={s}>
-                  {NODE_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <FieldLabel>Приоритет</FieldLabel>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as NodePriority)}
-              className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 px-2 py-2 text-xs text-slate-100"
-            >
-              {NODE_PRIORITY_VALUES.map((p) => (
-                <option key={p} value={p}>
-                  {NODE_PRIORITY_LABELS[p]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <FieldLabel>Горизонт</FieldLabel>
-            <select
-              value={timeHorizon}
-              onChange={(e) => setTimeHorizon(e.target.value as TimeHorizon)}
-              className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 px-2 py-2 text-xs text-slate-100"
-            >
-              {TIME_HORIZON_VALUES.map((h) => (
-                <option key={h} value={h}>
-                  {TIME_HORIZON_LABELS[h]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <FieldLabel>Энергия</FieldLabel>
-            <select
-              value={energy}
-              onChange={(e) => setEnergy(e.target.value as NodeEnergy)}
-              className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 px-2 py-2 text-xs text-slate-100"
-            >
-              {NODE_ENERGY_VALUES.map((eg) => (
-                <option key={eg} value={eg}>
-                  {NODE_ENERGY_LABELS[eg]}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
+      </div>
 
-        <FieldLabel>Прогресс: {progress}%</FieldLabel>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={progress}
-          onChange={(e) => setProgress(Number(e.target.value))}
-          className="w-full accent-indigo-500"
-        />
-
-        <FieldLabel>Целевая дата</FieldLabel>
-        <input
-          type="datetime-local"
-          value={targetDateLocal}
-          onChange={(e) => setTargetDateLocal(e.target.value)}
-          className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100"
-        />
-
-        <FieldLabel>Теги</FieldLabel>
-        <div className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 flex flex-wrap gap-1.5 min-h-[38px]">
-          {tags.map((tag) => (
-            <span
-              key={tag}
-              className="flex items-center gap-1 rounded-md bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 text-xs text-indigo-300"
-            >
-              {tag}
-              <button
-                type="button"
-                onClick={() => setTags((t) => t.filter((x) => x !== tag))}
-                className="text-indigo-400 hover:text-red-300 leading-none"
-              >
-                ×
-              </button>
-            </span>
-          ))}
+      {tab === "history" ? (
+        <div className="p-4 flex-1 overflow-y-auto">
+          {historyLoading ? (
+            <p className="text-xs text-slate-500 animate-pulse">Загрузка…</p>
+          ) : snapshots.length === 0 ? (
+            <p className="text-xs text-slate-500">
+              История изменений пуста. Сохраните узел, чтобы создать первый снапшот.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {snapshots.map((s) => {
+                const snap = s.snapshot;
+                return (
+                  <div
+                    key={s.id}
+                    className="rounded-xl bg-white/[0.04] border border-white/8 p-3 space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-indigo-400">v{s.version}</span>
+                      <span className="text-[10px] text-slate-500">
+                        {new Date(s.createdAt).toLocaleDateString("ru-RU", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-300 font-medium truncate">
+                      {String(snap.title ?? "")}
+                    </div>
+                    <div className="flex gap-2 text-[10px] text-slate-500">
+                      <span>{String(snap.status ?? "")}</span>
+                      <span>·</span>
+                      <span>{String(snap.progress ?? 0)}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="p-4 flex flex-col gap-3 flex-1 overflow-y-auto">
+          <FieldLabel>Заголовок</FieldLabel>
           <input
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
-                e.preventDefault();
-                const t = tagInput.trim().replace(/,$/, "");
-                if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
-                setTagInput("");
-              } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
-                setTags((prev) => prev.slice(0, -1));
-              }
-            }}
-            placeholder={tags.length === 0 ? "Добавить тег…" : ""}
-            className="flex-1 min-w-[80px] bg-transparent text-xs text-slate-300 outline-none placeholder:text-slate-600"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100"
           />
-        </div>
 
-        <div className="flex gap-2 mt-2">
-          <button
-            type="button"
-            onClick={() => void saveNode()}
-            className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+          <FieldLabel>Описание</FieldLabel>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100 resize-none"
+          />
+
+          <FieldLabel>Категория</FieldLabel>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as NodeCategory)}
+            className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100"
           >
-            Сохранить
-          </button>
-          <button
-            type="button"
-            onClick={() => void remove()}
-            className="rounded-lg border border-red-500/40 px-3 py-2 text-sm text-red-300 hover:bg-red-500/10"
-          >
-            Удалить
-          </button>
+            {NODE_CATEGORY_VALUES.map((c) => (
+              <option key={c} value={c}>
+                {NODE_CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <FieldLabel>Статус</FieldLabel>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as NodeStatus)}
+                className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 px-2 py-2 text-xs text-slate-100"
+              >
+                {NODE_STATUS_VALUES.map((s) => (
+                  <option key={s} value={s}>
+                    {NODE_STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <FieldLabel>Приоритет</FieldLabel>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as NodePriority)}
+                className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 px-2 py-2 text-xs text-slate-100"
+              >
+                {NODE_PRIORITY_VALUES.map((p) => (
+                  <option key={p} value={p}>
+                    {NODE_PRIORITY_LABELS[p]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <FieldLabel>Горизонт</FieldLabel>
+              <select
+                value={timeHorizon}
+                onChange={(e) => setTimeHorizon(e.target.value as TimeHorizon)}
+                className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 px-2 py-2 text-xs text-slate-100"
+              >
+                {TIME_HORIZON_VALUES.map((h) => (
+                  <option key={h} value={h}>
+                    {TIME_HORIZON_LABELS[h]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <FieldLabel>Энергия</FieldLabel>
+              <select
+                value={energy}
+                onChange={(e) => setEnergy(e.target.value as NodeEnergy)}
+                className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 px-2 py-2 text-xs text-slate-100"
+              >
+                {NODE_ENERGY_VALUES.map((eg) => (
+                  <option key={eg} value={eg}>
+                    {NODE_ENERGY_LABELS[eg]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <FieldLabel>Прогресс: {progress}%</FieldLabel>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={progress}
+            onChange={(e) => setProgress(Number(e.target.value))}
+            className="w-full accent-indigo-500"
+          />
+
+          <FieldLabel>Целевая дата</FieldLabel>
+          <input
+            type="datetime-local"
+            value={targetDateLocal}
+            onChange={(e) => setTargetDateLocal(e.target.value)}
+            className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100"
+          />
+
+          <FieldLabel>Теги</FieldLabel>
+          <div className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 flex flex-wrap gap-1.5 min-h-[38px]">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="flex items-center gap-1 rounded-md bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 text-xs text-indigo-300"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => setTags((t) => t.filter((x) => x !== tag))}
+                  className="text-indigo-400 hover:text-red-300 leading-none"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            <input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+                  e.preventDefault();
+                  const t = tagInput.trim().replace(/,$/, "");
+                  if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+                  setTagInput("");
+                } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+                  setTags((prev) => prev.slice(0, -1));
+                }
+              }}
+              placeholder={tags.length === 0 ? "Добавить тег…" : ""}
+              className="flex-1 min-w-[80px] bg-transparent text-xs text-slate-300 outline-none placeholder:text-slate-600"
+            />
+          </div>
+
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => void saveNode()}
+              className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+            >
+              Сохранить
+            </button>
+            <button
+              type="button"
+              onClick={() => void remove()}
+              className="rounded-lg border border-red-500/40 px-3 py-2 text-sm text-red-300 hover:bg-red-500/10"
+            >
+              Удалить
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 }
