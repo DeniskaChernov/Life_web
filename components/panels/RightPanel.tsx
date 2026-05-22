@@ -68,6 +68,7 @@ export function RightPanel() {
   const [targetDateLocal, setTargetDateLocal] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [isPinned, setIsPinned] = useState(false);
 
   // History tab
   const [tab, setTab] = useState<"edit" | "history">("edit");
@@ -97,6 +98,7 @@ export function RightPanel() {
     setTargetDateLocal(dateToLocalInput(db.targetDate));
     setTags(db.tags ?? []);
     setTagInput("");
+    setIsPinned(db.isPinned ?? false);
     setTab("edit");
     setSnapshots([]);
   }, [node]);
@@ -126,6 +128,7 @@ export function RightPanel() {
         progress,
         targetDate,
         tags,
+        isPinned,
       });
       updateNodeDb(node.id, updated);
     } catch {
@@ -143,6 +146,7 @@ export function RightPanel() {
     progress,
     targetDateLocal,
     tags,
+    isPinned,
     updateNodeDb,
   ]);
 
@@ -304,10 +308,20 @@ export function RightPanel() {
   return (
     <aside className="w-[340px] shrink-0 border-l border-white/10 glass-panel-strong flex flex-col">
       <div className="px-4 pt-4 pb-0 border-b border-white/10">
-        <p className="text-sm font-semibold text-slate-100 flex items-center gap-2 mb-3">
-          <span>{NODE_ICONS[category]}</span>
-          <span className="truncate">{NODE_CATEGORY_LABELS[category]}</span>
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+            <span>{NODE_ICONS[category]}</span>
+            <span className="truncate">{NODE_CATEGORY_LABELS[category]}</span>
+          </p>
+          <button
+            type="button"
+            title={isPinned ? "Открепить" : "Закрепить"}
+            onClick={() => setIsPinned((v) => !v)}
+            className={`text-base transition-colors ${isPinned ? "text-amber-400" : "text-slate-600 hover:text-slate-300"}`}
+          >
+            📌
+          </button>
+        </div>
         <div className="flex gap-1 -mb-px">
           {(["edit", "history"] as const).map((t) => (
             <button
