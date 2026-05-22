@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 const links = [
-  { href: "/life", label: "Life Map" },
-  { href: "/dashboard", label: "Dashboard" },
+  { href: "/life", label: "Life Map", icon: "◆" },
+  { href: "/dashboard", label: "Dashboard", icon: "▣" },
+  { href: "/financial", label: "Финансы", icon: "₽" },
 ];
 
 export function Sidebar() {
@@ -25,12 +26,13 @@ export function Sidebar() {
             <Link
               key={l.href}
               href={l.href}
-              className={`block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 active
                   ? "bg-white/10 text-white"
                   : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
               }`}
             >
+              <span className="w-4 text-center text-base leading-none shrink-0">{l.icon}</span>
               {l.label}
             </Link>
           );

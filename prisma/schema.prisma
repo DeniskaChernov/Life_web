@@ -30,6 +30,9 @@ model User {
   nodeSnapshots       NodeSnapshot[]
   aiInteractions      AiInteraction[]
   passwordResetTokens PasswordResetToken[]
+  netWorthSnapshots   NetWorthSnapshot[]
+  cashflowEntries     CashflowEntry[]
+  scenarios           Scenario[]
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -199,4 +202,72 @@ model AiInteraction {
 
   @@index([userId])
   @@index([contextNodeId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Financial — Net Worth Snapshots
+// ────────────────────────────────────────────────────────────────────────────────
+
+model NetWorthSnapshot {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime
+  assets           Json
+  liabilities      Json
+  totalAssets      Float
+  totalLiabilities Float
+  netWorth         Float
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Financial — Cashflow Entries
+// ────────────────────────────────────────────────────────────────────────────────
+
+model CashflowEntry {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedNodeId    String?
+  date            DateTime
+  type            String    // income | expense | transfer | investment
+  amount          Float
+  currency        String    @default("RUB")
+  category        String
+  subcategory     String?
+  description     String?
+  isRecurring     Boolean   @default(false)
+  recurringConfig Json?
+  isActual        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([userId, date(sort: Desc)])
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Financial — Scenarios
+// ────────────────────────────────────────────────────────────────────────────────
+
+model Scenario {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  type        String   @default("CUSTOM")
+  parameters  Json
+  results     Json?
+  isActive    Boolean  @default(false)
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
 }

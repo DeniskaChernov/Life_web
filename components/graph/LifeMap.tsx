@@ -16,11 +16,8 @@ import { nodeTypes } from "@/components/graph/nodes";
 import { edgeTypes } from "@/components/graph/edges";
 import { useGraphStore } from "@/store/graph.store";
 import { toFlowEdge, toFlowNode, type LifeFlowEdge, type LifeFlowNode } from "@/types/graph";
-import {
-  NODE_CATEGORY_VALUES,
-  type NodeCategory,
-  type TimeHorizon,
-} from "@/constants/node-categories";
+import { type NodeCategory, type TimeHorizon } from "@/constants/node-categories";
+import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
 import { EDGE_CULLING_PRIORITY_TYPES, type EdgeType } from "@/constants/edge-types";
 import { EDGE_CULLING_ZOOM_THRESHOLD, isCategoryVisibleAtPreset } from "@/constants/zoom-levels";
 import { useZoomPreset } from "@/hooks/useViewport";
@@ -104,9 +101,7 @@ function LifeMapInner({ graphId }: { graphId: string }) {
       });
   }, [edges, visibleNodeIds, zoom, focusSet, selectedEdgeId]);
 
-  const [creating, setCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newCategory, setNewCategory] = useState<NodeCategory>("GOAL");
+  const [modalOpen, setModalOpen] = useState(false);
   const dragTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -222,67 +217,47 @@ function LifeMapInner({ graphId }: { graphId: string }) {
     [openContextMenu],
   );
 
-  const createNodeAction = useCallback(async () => {
-    const gid = useGraphStore.getState().graphId;
-    if (!gid || !newTitle.trim()) return;
-    const cx = 200 + Math.random() * 120;
-    const cy = 120 + Math.random() * 120;
-    try {
-      const { node } = await createNode({
-        graphId: gid,
-        title: newTitle.trim(),
-        category: newCategory,
-        positionX: cx,
-        positionY: cy,
-      });
-      const flow = toFlowNode(node);
-      useGraphStore.setState((s) => ({ nodes: [...s.nodes, flow] }));
-      setNewTitle("");
-      setCreating(false);
-    } catch {
-      /* ignore */
-    }
-  }, [newTitle, newCategory]);
+  const createNodeAction = useCallback(
+    async (title: string, category: NodeCategory, description: string) => {
+      const gid = useGraphStore.getState().graphId;
+      if (!gid) return;
+      const cx = 200 + Math.random() * 120;
+      const cy = 120 + Math.random() * 120;
+      try {
+        const { node } = await createNode({
+          graphId: gid,
+          title,
+          category,
+          description: description || undefined,
+          positionX: cx,
+          positionY: cy,
+        });
+        const flow = toFlowNode(node);
+        useGraphStore.setState((s) => ({ nodes: [...s.nodes, flow] }));
+      } catch {
+        /* ignore */
+      }
+    },
+    [],
+  );
 
   return (
     <div className="relative w-full h-full min-h-0 flex flex-col">
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setCreating((v) => !v)}
+          onClick={() => setModalOpen(true)}
           className="rounded-lg glass-panel px-3 py-1.5 text-sm font-medium text-slate-100 hover:bg-white/15"
         >
-          {creating ? "Закрыть" : "+ Узел"}
+          + Узел
         </button>
-        {creating ? (
-          <div className="flex items-center gap-2 rounded-lg glass-panel-strong px-3 py-2">
-            <input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Название"
-              className="w-40 rounded bg-black/30 px-2 py-1 text-sm text-slate-100 outline-none ring-1 ring-white/10"
-            />
-            <select
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value as NodeCategory)}
-              className="rounded bg-black/30 px-2 py-1 text-xs text-slate-100 outline-none ring-1 ring-white/10"
-            >
-              {NODE_CATEGORY_VALUES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => void createNodeAction()}
-              className="rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-500"
-            >
-              Создать
-            </button>
-          </div>
-        ) : null}
       </div>
+
+      <CreateNodeModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={(title, category, description) => createNodeAction(title, category, description)}
+      />
 
       <TimeHorizonBar />
 

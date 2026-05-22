@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LifeMap } from "@/components/graph/LifeMap";
 import { RightPanel } from "@/components/panels/RightPanel";
 import { BreadcrumbNav } from "@/components/graph/controls/BreadcrumbNav";
+import { AIChat } from "@/components/ai/AIChat";
 
 export default function LifeGraphPage() {
   const params = useParams();
@@ -21,6 +22,7 @@ export default function LifeGraphPage() {
           <RightPanel />
         </div>
       </div>
+      <AIChat />
     </AppShell>
   );
 }
