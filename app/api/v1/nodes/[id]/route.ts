@@ -117,6 +117,29 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     },
   });
 
+  // Snapshot for content changes (not drag-only saves)
+  const isContentChange =
+    d.title !== undefined ||
+    d.description !== undefined ||
+    d.category !== undefined ||
+    d.status !== undefined ||
+    d.priority !== undefined ||
+    d.progress !== undefined ||
+    d.tags !== undefined;
+
+  if (isContentChange) {
+    await prisma.nodeSnapshot
+      .create({
+        data: {
+          nodeId: node.id,
+          userId,
+          version: node.version,
+          snapshot: node as unknown as Prisma.InputJsonValue,
+        },
+      })
+      .catch(() => {});
+  }
+
   return NextResponse.json({ node });
 }
 
