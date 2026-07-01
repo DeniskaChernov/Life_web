@@ -81,7 +81,7 @@
 
 ## 🚧 Сейчас в работе
 
-_(пусто — все начатые блоки закоммичены)_
+- Epic C2 UI: Property card, Scenario panel, Cashflow Sankey — в процессе финализации
 
 ---
 
@@ -89,16 +89,16 @@ _(пусто — все начатые блоки закоммичены)_
 
 ### 1. Epic C2 — Финансовая модель целиком (§7 блюпринта)
 
-Высокий приоритет. Заявленная USP продукта.
+Коммиты: `c093d83` (schema + API + Recharts), _(следующий — UI)_
 
-- Таблицы: `NetWorthSnapshot`, `CashflowEntry`, `Property`, `Scenario` (схема + миграция)
-- API endpoints + valid Zod-схемы
-- UI:
-  - **Net worth tracker** — график `NetWorthSnapshot` по времени (Recharts/Victory)
-  - **Cashflow Sankey** — диаграмма потоков «откуда → куда»
-  - **Property card** — узел с детальной карточкой объекта (адрес, оценка, ипотека)
-  - **Scenarios** — «что если повышение ставки», «что если +20% дохода» с пересчётом графа
-- Связь с edges типа FUNDS/ALLOCATES_TO/GENERATES (уже есть)
+- ✅ Таблицы: `NetWorthSnapshot`, `CashflowEntry`, `Property`, `Scenario`
+- ✅ API endpoints + Zod
+- ✅ Net worth tracker (Recharts)
+- ✅ Cashflow Sankey (упрощённая диаграмма потоков)
+- ✅ Property card (RightPanel для ASSET)
+- ✅ Scenarios — пресеты + запуск симуляции
+- 🔲 Форма снапшота Net Worth на UI (сейчас через API)
+- 🔲 Демо-данные financial в seed
 
 ### 2. Epic D — AI-стратег (§8 блюпринта)
 

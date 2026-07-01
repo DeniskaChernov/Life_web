@@ -3,6 +3,8 @@
 import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { NetWorthChart } from "./NetWorthChart";
+import { ScenarioPanel } from "./ScenarioPanel";
+import { CashflowSankey } from "./CashflowSankey";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,6 +31,7 @@ interface CashflowEntry {
 interface Props {
   snapshots: NetWorthSnapshot[];
   entries: CashflowEntry[];
+  embedded?: boolean;
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────────
@@ -313,7 +316,7 @@ function MortgageCalculator() {
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 
-export function FinancialDashboard({ snapshots, entries }: Props) {
+export function FinancialDashboard({ snapshots, entries, embedded }: Props) {
   const [showAddModal, setShowAddModal] = useState(false);
 
   const chartData = useMemo(
@@ -371,7 +374,7 @@ export function FinancialDashboard({ snapshots, entries }: Props) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <div className={embedded ? "space-y-6" : "flex-1 overflow-y-auto p-6 space-y-6"}>
       {showAddModal && <AddTransactionModal onClose={() => setShowAddModal(false)} />}
 
       {/* Header */}
@@ -545,6 +548,19 @@ export function FinancialDashboard({ snapshots, entries }: Props) {
         {/* Mortgage Calculator */}
         <MortgageCalculator />
       </div>
+
+      <section className="glass-panel rounded-2xl p-5">
+        <h2 className="text-sm font-semibold text-slate-200 mb-4">Потоки денег</h2>
+        <CashflowSankey
+          entries={entries.map((e) => ({
+            ...e,
+            date: typeof e.date === "string" ? e.date : e.date.toISOString().slice(0, 10),
+            description: e.description ?? null,
+          }))}
+        />
+      </section>
+
+      <ScenarioPanel />
 
       {/* Empty state hint when no snapshots */}
       {snapshots.length === 0 && (

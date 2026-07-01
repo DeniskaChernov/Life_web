@@ -28,6 +28,7 @@ import {
   type EdgeType,
   type EdgeDirection,
 } from "@/constants/edge-types";
+import { PropertyCard } from "@/components/financial/PropertyCard";
 
 function dateToLocalInput(d: Date | null | undefined): string {
   if (!d) return "";
@@ -492,6 +493,8 @@ export function RightPanel() {
             onChange={(e) => setTargetDateLocal(e.target.value)}
             className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-slate-100"
           />
+
+          {category === "ASSET" ? <PropertyCard nodeId={node.id} /> : null}
 
           <FieldLabel>Теги</FieldLabel>
           <div className="rounded-lg bg-black/30 border border-white/10 px-3 py-2 flex flex-wrap gap-1.5 min-h-[38px]">

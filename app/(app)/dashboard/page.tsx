@@ -262,7 +262,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="border-t border-white/10 pt-2">
-          <FinancialDashboard snapshots={snapshots} entries={cashflowEntries} />
+          <FinancialDashboard snapshots={snapshots} entries={cashflowEntries} embedded />
         </div>
       </main>
     </AppShell>
