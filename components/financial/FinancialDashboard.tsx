@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { NetWorthChart } from "./NetWorthChart";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -58,98 +59,6 @@ function calcMortgage(principal: number, annualRate: number, years: number): num
   const r = annualRate / 100 / 12;
   const n = years * 12;
   return (principal * (r * Math.pow(1 + r, n))) / (Math.pow(1 + r, n) - 1);
-}
-
-// ── SVG Line Chart ────────────────────────────────────────────────────────────
-
-function NetWorthChart({ snapshots }: { snapshots: NetWorthSnapshot[] }) {
-  if (snapshots.length < 2) return null;
-
-  const W = 560;
-  const H = 140;
-  const PAD = { top: 16, right: 16, bottom: 24, left: 64 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
-
-  const values = snapshots.map((s) => s.netWorth);
-  const minV = Math.min(...values);
-  const maxV = Math.max(...values);
-  const range = maxV - minV || 1;
-
-  const toX = (i: number) => PAD.left + (i / (snapshots.length - 1)) * innerW;
-  const toY = (v: number) => PAD.top + innerH - ((v - minV) / range) * innerH;
-
-  const pts = snapshots.map((s, i) => `${toX(i)},${toY(s.netWorth)}`).join(" ");
-  const areaPath =
-    `M ${toX(0)},${PAD.top + innerH} ` +
-    snapshots.map((s, i) => `L ${toX(i)},${toY(s.netWorth)}`).join(" ") +
-    ` L ${toX(snapshots.length - 1)},${PAD.top + innerH} Z`;
-
-  const lastPositive = values[values.length - 1] >= 0;
-  const lineColor = lastPositive ? "#34d399" : "#f87171";
-  const areaColor = lastPositive ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)";
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-label="График чистого капитала">
-      {/* Y-axis labels */}
-      {[0, 0.5, 1].map((t) => {
-        const v = minV + t * range;
-        const y = toY(v);
-        return (
-          <text key={t} x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize={9} fill="#64748b">
-            {v >= 1_000_000
-              ? `${(v / 1_000_000).toFixed(1)}M`
-              : v >= 1000
-                ? `${(v / 1000).toFixed(0)}k`
-                : v.toFixed(0)}
-          </text>
-        );
-      })}
-
-      {/* Zero line if in range */}
-      {minV < 0 && maxV > 0 && (
-        <line
-          x1={PAD.left}
-          x2={W - PAD.right}
-          y1={toY(0)}
-          y2={toY(0)}
-          stroke="rgba(255,255,255,0.15)"
-          strokeDasharray="4 3"
-        />
-      )}
-
-      {/* Area fill */}
-      <path d={areaPath} fill={areaColor} />
-
-      {/* Line */}
-      <polyline
-        points={pts}
-        fill="none"
-        stroke={lineColor}
-        strokeWidth={2}
-        strokeLinejoin="round"
-      />
-
-      {/* Data point dots */}
-      {snapshots.map((s, i) => (
-        <circle key={s.id} cx={toX(i)} cy={toY(s.netWorth)} r={3} fill={lineColor} opacity={0.8} />
-      ))}
-
-      {/* X-axis: first and last date labels */}
-      <text x={toX(0)} y={H - 4} textAnchor="start" fontSize={9} fill="#64748b">
-        {new Date(snapshots[0].date).toLocaleDateString("ru-RU", {
-          month: "short",
-          year: "2-digit",
-        })}
-      </text>
-      <text x={toX(snapshots.length - 1)} y={H - 4} textAnchor="end" fontSize={9} fill="#64748b">
-        {new Date(snapshots[snapshots.length - 1].date).toLocaleDateString("ru-RU", {
-          month: "short",
-          year: "2-digit",
-        })}
-      </text>
-    </svg>
-  );
 }
 
 // ── Add Transaction Modal ─────────────────────────────────────────────────────
@@ -407,6 +316,18 @@ function MortgageCalculator() {
 export function FinancialDashboard({ snapshots, entries }: Props) {
   const [showAddModal, setShowAddModal] = useState(false);
 
+  const chartData = useMemo(
+    () =>
+      snapshots.map((s) => ({
+        date:
+          typeof s.date === "string"
+            ? s.date.slice(0, 10)
+            : new Date(s.date).toISOString().slice(0, 10),
+        netWorth: s.netWorth,
+      })),
+    [snapshots],
+  );
+
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
   const prevSnapshot = snapshots.length > 1 ? snapshots[snapshots.length - 2] : null;
 
@@ -520,15 +441,7 @@ export function FinancialDashboard({ snapshots, entries }: Props) {
             )}
           </div>
 
-          {snapshots.length >= 2 ? (
-            <NetWorthChart snapshots={snapshots} />
-          ) : (
-            <div className="h-24 flex items-center justify-center border border-dashed border-white/10 rounded-xl">
-              <p className="text-xs text-slate-500">
-                Добавьте хотя бы 2 снапшота для отображения графика
-              </p>
-            </div>
-          )}
+          <NetWorthChart data={chartData} />
         </div>
 
         {/* Month Summary */}

@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
+import { FinancialDashboard } from "@/components/financial/FinancialDashboard";
 import Link from "next/link";
 
 function formatDate(d: Date | null | undefined): string {
@@ -42,45 +43,59 @@ export default async function DashboardPage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
+  const since = new Date();
+  since.setDate(since.getDate() - 90);
+
   const rootGraph = await prisma.graph.findFirst({
     where: { userId, isRoot: true },
     select: { id: true, name: true },
   });
 
-  const [allNodes, recentNodes, upcomingNodes, edgeCount] = await Promise.all([
-    prisma.node.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        category: true,
-        status: true,
-        progress: true,
-        title: true,
-        updatedAt: true,
-        targetDate: true,
-      },
-    }),
-    prisma.node.findMany({
-      where: { userId },
-      orderBy: { updatedAt: "desc" },
-      take: 8,
-      select: { id: true, title: true, category: true, status: true, updatedAt: true },
-    }),
-    prisma.node.findMany({
-      where: {
-        userId,
-        targetDate: {
-          gte: new Date(),
-          lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  const [allNodes, recentNodes, upcomingNodes, edgeCount, snapshots, cashflowEntries] =
+    await Promise.all([
+      prisma.node.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          category: true,
+          status: true,
+          progress: true,
+          title: true,
+          updatedAt: true,
+          targetDate: true,
         },
-        status: { not: "COMPLETED" },
-      },
-      orderBy: { targetDate: "asc" },
-      take: 6,
-      select: { id: true, title: true, category: true, status: true, targetDate: true },
-    }),
-    prisma.edge.count({ where: { userId } }),
-  ]);
+      }),
+      prisma.node.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        take: 8,
+        select: { id: true, title: true, category: true, status: true, updatedAt: true },
+      }),
+      prisma.node.findMany({
+        where: {
+          userId,
+          targetDate: {
+            gte: new Date(),
+            lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          },
+          status: { not: "COMPLETED" },
+        },
+        orderBy: { targetDate: "asc" },
+        take: 6,
+        select: { id: true, title: true, category: true, status: true, targetDate: true },
+      }),
+      prisma.edge.count({ where: { userId } }),
+      prisma.netWorthSnapshot.findMany({
+        where: { userId },
+        orderBy: { date: "asc" },
+        take: 24,
+      }),
+      prisma.cashflowEntry.findMany({
+        where: { userId, date: { gte: since } },
+        orderBy: { date: "desc" },
+        take: 50,
+      }),
+    ]);
 
   const totalNodes = allNodes.length;
   const activeNodes = allNodes.filter((n) => n.status === "ACTIVE").length;
@@ -102,7 +117,6 @@ export default async function DashboardPage() {
   return (
     <AppShell>
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-slate-100">Dashboard</h1>
@@ -116,7 +130,6 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {/* Key metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Узлов", value: totalNodes, sub: `${edgeCount} связей` },
@@ -140,7 +153,6 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Categories */}
           <div className="glass-panel rounded-xl p-4">
             <h2 className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-3">
               По категориям
@@ -172,7 +184,6 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* Status breakdown */}
           <div className="glass-panel rounded-xl p-4">
             <h2 className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-3">
               По статусу
@@ -199,7 +210,6 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Upcoming deadlines */}
           <div className="glass-panel rounded-xl p-4">
             <h2 className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-3">
               Дедлайны (30 дней)
@@ -225,7 +235,6 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          {/* Recent activity */}
           <div className="glass-panel rounded-xl p-4">
             <h2 className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-3">
               Недавние изменения
@@ -250,6 +259,10 @@ export default async function DashboardPage() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="border-t border-white/10 pt-2">
+          <FinancialDashboard snapshots={snapshots} entries={cashflowEntries} />
         </div>
       </main>
     </AppShell>

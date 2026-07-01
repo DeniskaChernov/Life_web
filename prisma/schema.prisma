@@ -32,6 +32,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   netWorthSnapshots   NetWorthSnapshot[]
   cashflowEntries     CashflowEntry[]
+  properties          Property[]
   scenarios           Scenario[]
 }
 
@@ -128,6 +129,8 @@ model Node {
   outgoingEdges  Edge[]         @relation("EdgeSource")
   incomingEdges  Edge[]         @relation("EdgeTarget")
   snapshots      NodeSnapshot[]
+  cashflowEntries CashflowEntry[]
+  property       Property?
 
   @@index([graphId])
   @@index([userId])
@@ -205,14 +208,14 @@ model AiInteraction {
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
-// Financial — Net Worth Snapshots
+// Financial system (LIFE_MASTER_BLUEPRINT.md §8, §11)
 // ────────────────────────────────────────────────────────────────────────────────
 
 model NetWorthSnapshot {
   id               String   @id @default(uuid())
   userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date             DateTime
+  date             DateTime @db.Date
   assets           Json
   liabilities      Json
   totalAssets      Float
@@ -225,17 +228,14 @@ model NetWorthSnapshot {
   @@index([userId])
 }
 
-// ────────────────────────────────────────────────────────────────────────────────
-// Financial — Cashflow Entries
-// ────────────────────────────────────────────────────────────────────────────────
-
 model CashflowEntry {
   id              String    @id @default(uuid())
   userId          String
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   linkedNodeId    String?
-  date            DateTime
-  type            String    // income | expense | transfer | investment
+  linkedNode      Node?     @relation(fields: [linkedNodeId], references: [id], onDelete: SetNull)
+  date            DateTime  @db.Date
+  type            String
   amount          Float
   currency        String    @default("RUB")
   category        String
@@ -249,11 +249,36 @@ model CashflowEntry {
 
   @@index([userId])
   @@index([userId, date(sort: Desc)])
+  @@index([category])
 }
 
-// ────────────────────────────────────────────────────────────────────────────────
-// Financial — Scenarios
-// ────────────────────────────────────────────────────────────────────────────────
+model Property {
+  id                    String    @id @default(uuid())
+  nodeId                String    @unique
+  node                  Node      @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                  String
+  address               Json
+  areaSqm               Float?
+  floor                 Int?
+  totalFloors           Int?
+  yearBuilt             Int?
+  purchasePrice         Float?
+  purchaseDate          DateTime? @db.Date
+  currentEstimatedValue Float?
+  lastValuationDate     DateTime? @db.Date
+  mortgageData          Json?
+  rentalData            Json?
+  monthlyExpenses       Json?
+  improvements          Json      @default("[]")
+  districtAnalysis      Json?
+  lifecycleStatus       String    @default("PLANNING")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
 
 model Scenario {
   id          String   @id @default(uuid())

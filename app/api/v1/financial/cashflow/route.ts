@@ -2,18 +2,22 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { CASHFLOW_TYPE_VALUES } from "@/types/financial.types";
 
-const CASHFLOW_TYPES = ["income", "expense", "transfer", "investment"] as const;
+const dateSchema = z.union([
+  z.string().datetime(),
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+]);
 
 const createSchema = z.object({
-  date: z.string().datetime(),
-  type: z.enum(CASHFLOW_TYPES),
+  date: dateSchema,
+  type: z.enum(CASHFLOW_TYPE_VALUES),
   amount: z.number().positive(),
   currency: z.string().max(10).default("RUB"),
   category: z.string().max(100),
   subcategory: z.string().max(100).optional(),
-  description: z.string().max(500).optional(),
-  linkedNodeId: z.string().optional(),
+  description: z.string().max(2000).optional(),
+  linkedNodeId: z.string().optional().nullable(),
   isRecurring: z.boolean().default(false),
   isActual: z.boolean().default(true),
 });
@@ -24,12 +28,16 @@ export async function GET(req: Request) {
   if (!userId) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
   const url = new URL(req.url);
-  const limit = Math.min(Number(url.searchParams.get("limit") ?? "50"), 200);
+  const limit = Math.min(Number(url.searchParams.get("limit") ?? 50), 200);
+  const days = Number(url.searchParams.get("days") ?? 90);
+  const since = new Date();
+  since.setDate(since.getDate() - days);
 
   const entries = await prisma.cashflowEntry.findMany({
-    where: { userId },
+    where: { userId, date: { gte: since } },
     orderBy: { date: "desc" },
     take: limit,
+    include: { linkedNode: { select: { id: true, title: true } } },
   });
 
   return NextResponse.json({ entries });
@@ -56,6 +64,12 @@ export async function POST(req: Request) {
   }
 
   const d = parsed.data;
+
+  if (d.linkedNodeId) {
+    const node = await prisma.node.findFirst({ where: { id: d.linkedNodeId, userId } });
+    if (!node) return NextResponse.json({ error: "NODE_NOT_FOUND" }, { status: 404 });
+  }
+
   const entry = await prisma.cashflowEntry.create({
     data: {
       userId,
