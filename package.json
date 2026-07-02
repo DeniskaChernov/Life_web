@@ -12,6 +12,7 @@
     "prepare": "husky",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:repair-railway": "tsx scripts/repair-failed-migration.ts",
     "db:push": "prisma db push",
     "postinstall": "prisma generate"
   },

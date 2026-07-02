@@ -1,5 +1,4 @@
--- Epic C2 incremental: Property model + CashflowEntry → Node FK
--- (NetWorthSnapshot, CashflowEntry, Scenario created in 20260522100000_financial_tables)
+-- Epic C2: Property + CashflowEntry → Node FK (after financial_tables)
 
 CREATE TABLE IF NOT EXISTS "Property" (
   "id"                    TEXT PRIMARY KEY,
@@ -30,6 +29,12 @@ CREATE TABLE IF NOT EXISTS "Property" (
     FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 CREATE INDEX IF NOT EXISTS "Property_userId_idx" ON "Property"("userId");
+
+-- Orphan linkedNodeId breaks FK; null them before adding constraint.
+UPDATE "CashflowEntry"
+SET "linkedNodeId" = NULL
+WHERE "linkedNodeId" IS NOT NULL
+  AND "linkedNodeId" NOT IN (SELECT id FROM "Node");
 
 DO $$
 BEGIN
